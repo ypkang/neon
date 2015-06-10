@@ -27,10 +27,6 @@ class LogRecordStreamHandler(SocketServer.StreamRequestHandler):
             record = logging.makeLogRecord(obj)
             self.handleLogRecord(record)
 
-        # def unPickle(self, data):
-            # do I really need this function?
-            # return pickle.loads(data)
-
     def handleLogRecord(self, record):
         # if a name is specified, we use the named logger rather
         # than the one implied by the record
@@ -71,7 +67,7 @@ class LogRecordSocketReceiver(SocketServer.ThreadingTCPServer):
 
 def main():
     logging.basicConfig(
-        # relativeCreated gives the time from server start that the log was written
+        # created gives the time from server start in millis
         format='%(created)5d %(name)-15s %(levelname)-8s %(message)s')
     tcpserver = LogRecordSocketReceiver()
     print('Booting TCP Server')
