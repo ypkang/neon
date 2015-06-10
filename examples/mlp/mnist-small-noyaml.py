@@ -17,7 +17,7 @@
 Example that creates and uses a network without a configuration file.
 """
 
-import logging
+import logging, logging.handlers
 from neon.backends import gen_backend
 from neon.layers import FCLayer, DataLayer, CostLayer
 from neon.models import MLP
@@ -27,7 +27,23 @@ from neon.experiments import FitPredictErrorExperiment
 
 logging.basicConfig(level=20)
 logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+# if we set handler to DEBUG but don't set logger to debug
+# handler will still not use debug
 
+# declare a socketHandler
+socketHandler = logging.handlers.SocketHandler('localhost',
+                    logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+
+
+#create file handler which logs all messages
+fh = logging.FileHandler('spam.log')
+fh.setLevel(logging.DEBUG)
+
+logger.addHandler(fh)
+logger.addHandler(socketHandler)
+
+logging.info("we've initialized the loggers")
 
 def create_model(nin):
     layers = []
