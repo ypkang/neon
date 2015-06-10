@@ -4,6 +4,8 @@ neon.sublime-workspace
 *.pkl
 *.so
 *.swp
+*.log
+*.org
 .DS_Store
 .tox
 neon.egg-info
