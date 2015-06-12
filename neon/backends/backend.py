@@ -30,7 +30,7 @@ class Backend(YAMLable):
     Notes:
         See the list of `implemented backends </backends.html>`_
     """
-
+    is_dist = False
     def empty(self, shape, dtype=None, persist_values=True):
         """
         Instantiate a new instance of this backend's Tensor class, without
@@ -1213,6 +1213,9 @@ class Backend(YAMLable):
     def distribute(self, data, dtype):
         return self.par.distribute(data, dtype)
 
+    def set(self, tensor, data):
+        tensor[:] = data
+
     def rank(self):
         return self.par.rank()
 
@@ -1221,6 +1224,12 @@ class Backend(YAMLable):
 
     def reduce_tensor(self, tensor):
         return self.par.reduce_tensor(tensor)
+
+    def scatter(self, src, dest):
+        return self.par.scatter(src, dest)
+
+    def allocate_fragment(self, buf_shape, dtype=None):
+        return self.par.allocate_fragment(buf_shape, dtype)
 
 
 class Tensor(object):

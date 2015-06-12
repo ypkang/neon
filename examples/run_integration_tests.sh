@@ -37,8 +37,8 @@ mkdir -p "$(dirname $LOG_FILE)"
 
 cpu_yaml=("${THIS_DIR}/recurrent/mobydick-lstm-small.yaml" \
           "${THIS_DIR}/recurrent/mobydick-rnn-small.yaml")
-hpu_yaml=("${THIS_DIR}/convnet/i1k-alexnet-fp16.yaml")
-gpu_yaml=("${THIS_DIR}/convnet/i1k-alexnet-fp32.yaml")
+hpu_yaml=("${THIS_DIR}/convnet/i1k-alexnet-fp16.yaml" \
+          "${THIS_DIR}/convnet/i1k-alexnet-fp32.yaml")
 all_yaml=("${THIS_DIR}/convnet/mnist-small.yaml" \
           "${THIS_DIR}/mlp/mnist-small.yaml" \
           "${THIS_DIR}/convnet/cifar10-small.yaml" \

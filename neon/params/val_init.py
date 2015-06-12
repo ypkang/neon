@@ -114,7 +114,6 @@ class AutoUniformValGen(UniformValGen):
     def __init__(self, **kwargs):
         super(AutoUniformValGen, self).__init__(**kwargs)
         opt_param(self, ['relu'], False)
-        opt_param(self, ['islocal'], False)
 
         self.low = float('nan')
         self.high = float('nan')
@@ -132,14 +131,26 @@ class AutoUniformValGen(UniformValGen):
         Returns:
             neon.backends.Tensor: newly initialized data structure.
         """
-        if self.islocal:
+        result = self.backend.empty(shape, dtype)
+        if self.backend.is_dist:
+            if self.is_local:
+                result.ptype = 'replica'
+            else:
+                shape = (shape[0] * self.backend.num_dev, shape[1])
+                result.ptype = 'vfragment'
+
+        if self.is_local:
             self.low = - 1.0 / math.sqrt(shape[0])
         else:
             self.low = - 1.0 / math.sqrt(shape[-1])
         if self.relu:
             self.low *= math.sqrt(2) ** self.relu
         self.high = - self.low
-        return super(AutoUniformValGen, self).generate(shape, dtype)
+
+        hvalue = np.random.uniform(self.low, self.high, shape).astype(
+                    result.dtype)
+        self.backend.set(result, hvalue)
+        return result
 
 
 class GaussianValGen(ValGen):
@@ -271,10 +282,22 @@ class NodeNormalizedValGen(ValGen):
         Returns:
             neon.backends.Tensor: newly initialized data structure.
         """
+        result = self.backend.empty(shape, dtype)
+        if self.backend.is_dist:
+            if self.is_local:
+                result.ptype = 'replica'
+            else:
+                shape = (shape[0] * self.backend.num_dev, shape[1])
+                result.ptype = 'vfragment'
+
         logger.info("Generating {cl_nm} values of shape {shape}".format(
                     cl_nm=self.__class__.__name__, shape=shape))
+
         node_norm = self.scale * math.sqrt(6.0 / sum(shape))
-        return self.backend.uniform(-node_norm, node_norm, shape, dtype)
+        hvalue = np.random.uniform(-node_norm, node_norm, shape).astype(
+                        result.dtype)
+        self.backend.set(result, hvalue)
+        return result
 
 
 class OrthoNormalizedValGen(ValGen):
@@ -285,7 +308,6 @@ class OrthoNormalizedValGen(ValGen):
     def __init__(self, **kwargs):
         super(OrthoNormalizedValGen, self).__init__(**kwargs)
         opt_param(self, ['relu'], False)
-        opt_param(self, ['islocal'], False)
 
     def generate(self, shape, dtype=None):
         logger.info("Generating {cl_nm} values of shape {shape}".format(
@@ -295,7 +317,7 @@ class OrthoNormalizedValGen(ValGen):
                              " dimensions, you gave: {}".format(len(shape)))
 
         # Non local, shape is O x I, local shape is (C x R x S) x O
-        oi_shape = shape if self.islocal else (shape[1], shape[0])
+        oi_shape = shape if self.is_local else (shape[1], shape[0])
         init_wts = np.random.normal(0.0, 1.0, oi_shape)
         u, _, v = np.linalg.svd(init_wts, full_matrices=False)
         q = u if u.shape == oi_shape else v

@@ -130,23 +130,23 @@ def gen_backend(model=None, gpu=None, nrv=False, datapar=False, modelpar=False,
             except ImportError:
                 logger.warning("cudanet not found, can't run via GPU")
                 gpuflag = False
-        elif gpuflag and gpu == 'nervanagpu':
+        elif gpuflag and gpu.startswith('nervanagpu'):
             try:
                 import nervanagpu  # noqa
                 try:
-                    # import pycuda.autoinit
-                    import pycuda.driver as drv
-                    drv.init()
                     device_id = device_id if device_id is not None else 0
-                    global ctx
-                    ctx = drv.Device(device_id).make_context()
-                    import atexit
-                    atexit.register(ctx.pop)
-                    from neon.backends.gpu import GPU
                     be_name = 'NervanaGPU'
-                    be = GPU(rng_seed=rng_seed,
-                             stochastic_round=stochastic_round,
-                             device_id=device_id)
+                    if gpu == 'nervanagpu':
+                        from neon.backends.gpu import GPU
+                        be = GPU(rng_seed=rng_seed,
+                                 stochastic_round=stochastic_round,
+                                 device_id=device_id)
+                    else:
+                        from neon.backends.mgpu import MGPU
+                        num_dev = int(gpu.strip('nervanagpu'))
+                        be = MGPU(rng_seed=rng_seed,
+                                 stochastic_round=stochastic_round,
+                                 device_id=device_id, num_dev=num_dev)
                 except ImportError:
                     logger.warning("pycuda error, can't run via GPU")
                     gpuflag = False
