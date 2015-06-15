@@ -32,9 +32,9 @@
 
   dataset: &ds !obj:datasets.STOCKPRICE {
     repo_path: '~/data',
-    sample_pct: 10, # 10% gives 400 batches like in rnn2
+    sample_pct: 100, # 10% gives 400 batches like in rnn2
     data_dim: &dd 4,
-    unrolls: &ur 5,
+    unrolls: &ur 50,
     backend_type: &bt np.float32,  # 64 is needed for numerical gradients
   },
 
@@ -121,7 +121,7 @@
         name: cost,
         backend_type: *bt,
         ref_layer: *datalayer,
-        cost: !obj:transforms.CrossEntropy {
+        cost: !obj:transforms.SumSquaredDiffs {
           backend_type: *bt,
         },
       },

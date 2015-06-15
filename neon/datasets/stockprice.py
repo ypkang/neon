@@ -46,6 +46,7 @@ class STOCKPRICE(Dataset):
         repo_path (str, optional): where to locally host this dataset on disk
     """
     raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/AAPL.csv'
+    # also look at https://www.quandl.com/api/v1/datasets/WIKI/MSFT.csv
 
     def __init__(self, **kwargs):
         self.macro_batched = False
@@ -61,17 +62,15 @@ class STOCKPRICE(Dataset):
 
     def read_txt_file(self, fname):
         """
-        Reads the text file, converts characters to one-hot encoding.
+        Reads the csv file,
 
-        Uses 96 ASCII characters that are printable (32-128). Replaces
-        line breaks of the form '<carriage ret><new line>' with a single
-        space. All unprintable characters are mapped to 0 (UNK).
+        Date, Open, High, Low, Close, Volume, Ex-Dividend, Split Ratio,
+        Adj. Open, Adj. High, Adj. Low, Adj. Close, Adj. Volume
         """
-        with open(fname, 'r') as f:
-            text = f.read()
-            ### TODO: Import csv reader, parse the data
-
-        return array
+        ### TODO: Import csv reader, parse the data
+        my_data = numpy.genfromtxt(fname, delimiter=',')
+        #import ipdb; ipdb.set_trace()
+        return my_data[1::, 1::].T  # ignore labels and dates
 
     def transpose_batches(self, data, dtype):
         """
@@ -115,12 +114,14 @@ class STOCKPRICE(Dataset):
                     pass
                 train_idcs = train_idcs[0:int(8000 * self.sample_pct)]
             url = self.raw_base_url
-            name = os.path.basename(url).rstrip('.txt')
-            repo_file = os.path.join(save_dir, name + '.txt')
+            name = os.path.basename(url)
+            repo_file = os.path.join(save_dir, name)
             if not os.path.exists(repo_file):
                 self.download_to_repo(url, save_dir)
             logger.info('loading: %s' % name)
             indat = self.read_txt_file(repo_file)
+
+            #import ipdb; ipdb.set_trace()
 
             self.preinputs = dict()
             self.preinputs['train'] = indat[:, train_idcs]
