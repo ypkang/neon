@@ -126,6 +126,13 @@ class RecurrentOutputLayer(RecurrentLayer):
 
     def fprop(self, inputs, tau):
         self.backend.fprop_fc(self.pre_act_list[tau], inputs, self.weights)
+
+        # added bias to output layer
+        # changed self.pre_act to self.pre_act_list[tau] since
+        # self.activation takes list
+        if self.use_biases is True:
+            self.backend.add(self.pre_act_list[tau], self.biases, out=self.pre_act_list[tau])
+
         self.activation.fprop_func(self.backend,
                                    self.pre_act_list[tau],
                                    self.output_list[tau])
@@ -137,6 +144,18 @@ class RecurrentOutputLayer(RecurrentLayer):
 
         self.backend.bprop_fc(self.deltas, self.weights, error)
         self.backend.update_fc(out=self.temp_out, inputs=inputs, deltas=error)
+
+        # will be used for batch norm
+        upm = self.utemp if self.accumulate else self.updates
+        u_idx = 0
+        if self.batch_norm:
+            self.bn.bprop_func(self.backend, self.pre_act, error,
+                               self.skip_act)
+            u_idx = 2
+
+        # added bias to output layer
+        if self.use_biases is True:
+            self.backend.sum(error, axes=1, out=upm[u_idx+1])
 
         if numgrad and (numgrad['name'] == "output"):
             self.grad_log(numgrad['name'], self.temp_out[numgrad['x'],
