@@ -28,12 +28,12 @@
   },
 
   # Enable predictions to generate example output strings. Requires CPU backend
-  # predictions: [train, test],
+  predictions: [train, test],
 
   dataset: &ds !obj:datasets.STOCKPRICE {
     repo_path: '~/data',
     sample_pct: 100, # 10% gives 400 batches like in rnn2
-    data_dim: &dd 4,
+    data_dim: &dd 12,
     unrolls: &ur 50,
     backend_type: &bt np.float32,  # 64 is needed for numerical gradients
   },
@@ -67,7 +67,7 @@
   model: !obj:models.RNN {
 
     num_epochs: 10,
-    batch_size: &bs 64,
+    batch_size: &bs 32,
     reset_period: 50,  # 50 for LSTM, 20 for RNN?
     unrolls: *ur,
     make_plots: False,
