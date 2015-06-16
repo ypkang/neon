@@ -274,7 +274,9 @@ class RNN(MLP):
             error = self.class_layer.deltas
             for t in list(range(0, tau))[::-1]:
                 if 'c_t' in self.rec_layer.__dict__:
-                    cerror = self.rec_layer.celtas  # on t=0, prev batch state
+                    # gradient clipping
+                    #cerror = self.rec_layer.celtas  # on t=0, prev batch state
+                    self.backend.clip(self.rec_layer.celtas, -1, 1, out=cerror)  # on t=0, prev batch state
                 else:
                     cerror = None  # for normal RNN
                 self.rec_layer.bprop(error, cerror, t, numgrad=numgrad)
@@ -472,10 +474,13 @@ class RNN(MLP):
         predlabels = self.backend.empty((1, self.batch_size))
         labels = self.backend.empty((1, self.batch_size))
 
-        outputs_pred = self.backend.zeros((self.data_layer.num_batches *
-                                           self.unrolls, self.batch_size))
-        outputs_targ = self.backend.zeros((self.data_layer.num_batches *
-                                           self.unrolls, self.batch_size))
+        # changed from backend to numpy
+        # TODO: replace 12 with n_features
+        import numpy as np
+        outputs_pred = np.zeros((self.data_layer.num_batches *
+                                           self.unrolls, self.batch_size, 12))
+        outputs_targ = np.zeros((self.data_layer.num_batches *
+                                           self.unrolls, self.batch_size, 12))
 
         mb_id = 0
         self.data_layer.reset_counter()
@@ -485,25 +490,32 @@ class RNN(MLP):
             self.fprop(debug=False)
             # time unrolling loop to disseminate fprop results
             for tau in range(self.unrolls):
-                probs = self.class_layer.output_list[tau]
-                targets = self.data_layer.targets[tau]
-                self.backend.argmax(targets, axis=0, out=labels)
-                self.backend.argmax(probs, axis=0, out=predlabels)
+                probs = self.class_layer.output_list[tau].asnumpyarray()
+                targets = self.data_layer.targets[tau].asnumpyarray()
+
+                #self.backend.argmax(targets, axis=0, out=labels)
+                #self.backend.argmax(probs, axis=0, out=predlabels)
 
                 # collect batches to re-assemble continuous data
                 idx = self.unrolls * (mb_id - 1) + tau
-                outputs_pred[idx, :] = predlabels
-                outputs_targ[idx, :] = labels
+                outputs_pred[idx, :, :] = probs.T
+                outputs_targ[idx, :, :] = targets.T
 
         self.data_layer.cleanup()
 
         # flatten the 2d predictions into our canonical 1D format
-        pred_flat = outputs_pred.transpose().reshape((1, -1))
-        targ_flat = outputs_targ.transpose().reshape((1, -1))
+        pred_flat = outputs_pred.transpose().reshape((12, -1))
+        targ_flat = outputs_targ.transpose().reshape((12, -1))
 
-        self.write_string(pred_flat, targ_flat, setname)
+        from matplotlib import pyplot as plt
+        plt.plot(pred_flat[:, 0])
+        plt.show()
 
-        return (pred_flat, targ_flat)
+        np.savetxt(setname + '-pred.txt', pred_flat)
+        np.savetxt(setname + '-true.txt', targ_flat)
+
+        #self.write_string(pred_flat, targ_flat, setname)
+        return (predlabels, labels)
 
     def write_string(self, pred, targ, setname):
             """
