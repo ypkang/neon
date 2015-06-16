@@ -45,7 +45,8 @@ class STOCKPRICE(Dataset):
     Keyword Args:
         repo_path (str, optional): where to locally host this dataset on disk
     """
-    raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/AAPL.csv'
+    raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/normalized_AAPL.csv'
+    #raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/normalized_MSFT.csv'
     # also look at https://www.quandl.com/api/v1/datasets/WIKI/MSFT.csv
 
     def __init__(self, **kwargs):
@@ -70,7 +71,7 @@ class STOCKPRICE(Dataset):
         ### TODO: Import csv reader, parse the data
         my_data = numpy.genfromtxt(fname, delimiter=',')
         #import ipdb; ipdb.set_trace()
-        return my_data[1::, 1::].T  # ignore labels and dates
+        return my_data.T  # ignore labels and dates
 
     def transpose_batches(self, data, dtype):
         """
@@ -78,6 +79,7 @@ class STOCKPRICE(Dataset):
         """
         bs = self.data_dim * self.unrolls
         dd = self.data_dim
+
         if data.shape[0] % bs != 0:
             logger.warning('Incompatible batch size. '
                            'Discarding %d samples...',
@@ -103,8 +105,8 @@ class STOCKPRICE(Dataset):
                                     self.__class__.__name__)
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
-            train_idcs = list(range(8000))  # 8700 records
-            test_idcs = range(8000, 8600)
+            train_idcs = list(range(6400))  # 8700 records
+            test_idcs = list(range(6400, 8000))
             if 'sample_pct' in self.__dict__:
                 if self.sample_pct >= 1.0:
                     self.sample_pct /= 100.0
@@ -141,7 +143,6 @@ class STOCKPRICE(Dataset):
                                                                  length, :]
                 self.targets[dataset] = offbyone
             self.format(dtype=self.backend_type)  # runs transpose_batches
-
         else:
             raise AttributeError('repo_path not specified in config')
             # TODO: try and download and read in directly?
