@@ -17,6 +17,7 @@ mobydick is a character-based text dataset.
 The text is available at: http://www.gutenberg.org/ebooks/2701
 """
 
+import numpy as np
 import logging
 import numpy
 import os
@@ -45,8 +46,7 @@ class STOCKPRICE(Dataset):
     Keyword Args:
         repo_path (str, optional): where to locally host this dataset on disk
     """
-    raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/normalized_AAPL.csv'
-    #raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/normalized_MSFT.csv'
+    raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/AAPL.csv'
     # also look at https://www.quandl.com/api/v1/datasets/WIKI/MSFT.csv
 
     def __init__(self, **kwargs):
@@ -69,9 +69,19 @@ class STOCKPRICE(Dataset):
         Adj. Open, Adj. High, Adj. Low, Adj. Close, Adj. Volume
         """
         ### TODO: Import csv reader, parse the data
-        my_data = numpy.genfromtxt(fname, delimiter=',')
-        #import ipdb; ipdb.set_trace()
-        return my_data.T  # ignore labels and dates
+        X = numpy.genfromtxt(fname, delimiter=',')
+        X = X[1:, 1:] # ignore dates and labels
+
+        # scale 0 to 1
+        min = np.min(X, axis=0)
+        max = np.max(X, axis=0)
+        X = (X - min) / (max - min)
+
+        print X.shape
+        print X.max()
+        print X.min()
+
+        return X.T
 
     def transpose_batches(self, data, dtype):
         """
@@ -105,8 +115,8 @@ class STOCKPRICE(Dataset):
                                     self.__class__.__name__)
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
-            train_idcs = list(range(6400))  # 8700 records
-            test_idcs = list(range(6400, 8000))
+            train_idcs = list(range(7200))  # 8700 records
+            test_idcs = list(range(7200, 8000))
             if 'sample_pct' in self.__dict__:
                 if self.sample_pct >= 1.0:
                     self.sample_pct /= 100.0
