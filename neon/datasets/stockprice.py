@@ -29,6 +29,12 @@ from neon.util.param import opt_param, ensure_dtype
 logger = logging.getLogger(__name__)
 
 
+def normalize(X):
+    min = np.min(X, axis=0)
+    max = np.max(X, axis=0)
+    return (X - min) / (max - min + 1e-6)
+
+
 class STOCKPRICE(Dataset):
 
     """
@@ -46,8 +52,7 @@ class STOCKPRICE(Dataset):
     Keyword Args:
         repo_path (str, optional): where to locally host this dataset on disk
     """
-    raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/AAPL.csv'
-    # also look at https://www.quandl.com/api/v1/datasets/WIKI/MSFT.csv
+    raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/MSFT.csv'
 
     def __init__(self, **kwargs):
         self.macro_batched = False
@@ -72,16 +77,11 @@ class STOCKPRICE(Dataset):
         X = numpy.genfromtxt(fname, delimiter=',')
         X = X[1:, 1:] # ignore dates and labels
 
-        # scale 0 to 1
-        min = np.min(X, axis=0)
-        max = np.max(X, axis=0)
-        X = (X - min) / (max - min)
-
-        print X.shape
-        print X.max()
-        print X.min()
-
-        return X.T
+        # normalize to 0 through 1
+        #X = normalize(X)
+        X[:6400] = normalize(X[:6400])
+        X[6400:7200] = normalize(X[6400:7200])
+        return X.T # shape = (n_features, n_examples)
 
     def transpose_batches(self, data, dtype):
         """
@@ -115,8 +115,8 @@ class STOCKPRICE(Dataset):
                                     self.__class__.__name__)
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
-            train_idcs = list(range(7200))  # 8700 records
-            test_idcs = list(range(7200, 8000))
+            train_idcs = list(range(6400))  # 8700 records
+            test_idcs = list(range(6400, 7200))
             if 'sample_pct' in self.__dict__:
                 if self.sample_pct >= 1.0:
                     self.sample_pct /= 100.0
@@ -132,8 +132,6 @@ class STOCKPRICE(Dataset):
                 self.download_to_repo(url, save_dir)
             logger.info('loading: %s' % name)
             indat = self.read_txt_file(repo_file)
-
-            #import ipdb; ipdb.set_trace()
 
             self.preinputs = dict()
             self.preinputs['train'] = indat[:, train_idcs]
