@@ -474,7 +474,8 @@ class RNN(MLP):
         predlabels = self.backend.empty((1, self.batch_size))
         labels = self.backend.empty((1, self.batch_size))
 
-        # changed from backend to numpy
+        # self.backend.zeros replaced by np.zeros to support 3d required
+        # for finance example
         # TODO: replace 12 with n_features
         import numpy as np
         outputs_pred = np.zeros((self.data_layer.num_batches *
@@ -493,6 +494,7 @@ class RNN(MLP):
                 probs = self.class_layer.output_list[tau].asnumpyarray()
                 targets = self.data_layer.targets[tau].asnumpyarray()
 
+                # argmax removed to support regression.
                 #self.backend.argmax(targets, axis=0, out=labels)
                 #self.backend.argmax(probs, axis=0, out=predlabels)
 
@@ -506,10 +508,6 @@ class RNN(MLP):
         # flatten the 2d predictions into our canonical 1D format
         pred_flat = outputs_pred.transpose().reshape((12, -1))
         targ_flat = outputs_targ.transpose().reshape((12, -1))
-
-        from matplotlib import pyplot as plt
-        plt.plot(pred_flat[:, 0])
-        plt.show()
 
         np.savetxt(setname + '-pred.txt', pred_flat)
         np.savetxt(setname + '-true.txt', targ_flat)

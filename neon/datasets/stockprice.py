@@ -78,7 +78,7 @@ class STOCKPRICE(Dataset):
         X = X[1:, 1:] # ignore dates and labels
 
         # normalize to 0 through 1
-        #X = normalize(X)
+        # TODO: move split parameters to YAML
         X[:6400] = normalize(X[:6400])
         X[6400:7200] = normalize(X[6400:7200])
         return X.T # shape = (n_features, n_examples)

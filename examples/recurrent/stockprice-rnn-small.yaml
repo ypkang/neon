@@ -34,7 +34,7 @@
     repo_path: '~/data',
     sample_pct: 100, # 10% gives 400 batches like in rnn2
     data_dim: &dd 12,
-    unrolls: &ur 10,
+    unrolls: &ur 50,
     backend_type: &bt np.float32,  # 64 is needed for numerical gradients
   },
 
