@@ -274,9 +274,7 @@ class RNN(MLP):
             error = self.class_layer.deltas
             for t in list(range(0, tau))[::-1]:
                 if 'c_t' in self.rec_layer.__dict__:
-                    # gradient clipping
-                    #cerror = self.rec_layer.celtas  # on t=0, prev batch state
-                    self.backend.clip(self.rec_layer.celtas, -1, 1, out=cerror)  # on t=0, prev batch state
+                    cerror = self.rec_layer.celtas  # on t=0, prev batch state
                 else:
                     cerror = None  # for normal RNN
                 self.rec_layer.bprop(error, cerror, t, numgrad=numgrad)
