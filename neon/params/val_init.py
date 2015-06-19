@@ -25,6 +25,13 @@ from neon.util.persist import YAMLable
 
 logger = logging.getLogger(__name__)
 
+def gen_weights(backend, is_local, distribution, *myargs, **kwargs):
+    if backend.is_dist:
+        kwargs['ptype'] = 'replica' if is_local else 'vfragment'
+    # Oh god why did we do this to ourselves?
+    if backend.__class__.__name__ == 'CPU' and distribution == 'uniform':
+        kwargs['size'] = kwargs.pop('shape', 1)
+    return getattr(backend, distribution)(*myargs, **kwargs)
 
 class ValGen(YAMLable):
     """
@@ -96,7 +103,10 @@ class UniformValGen(ValGen):
         """
         logger.info("Generating {cl_nm} values of shape {shape}".format(
                     cl_nm=self.__class__.__name__, shape=shape))
-        return self.backend.uniform(self.low, self.high, shape, dtype)
+        return gen_weights(self.backend, self.is_local, 'uniform',
+                           low=self.low, high=self.high, shape=shape,
+                           dtype=dtype)
+
 
 
 class AutoUniformValGen(UniformValGen):
@@ -131,14 +141,6 @@ class AutoUniformValGen(UniformValGen):
         Returns:
             neon.backends.Tensor: newly initialized data structure.
         """
-        result = self.backend.empty(shape, dtype)
-        if self.backend.is_dist:
-            if self.is_local:
-                result.ptype = 'replica'
-            else:
-                shape = (shape[0] * self.backend.num_dev, shape[1])
-                result.ptype = 'vfragment'
-
         if self.is_local:
             self.low = - 1.0 / math.sqrt(shape[0])
         else:
@@ -146,11 +148,7 @@ class AutoUniformValGen(UniformValGen):
         if self.relu:
             self.low *= math.sqrt(2) ** self.relu
         self.high = - self.low
-
-        hvalue = np.random.uniform(self.low, self.high, shape).astype(
-                    result.dtype)
-        self.backend.set(result, hvalue)
-        return result
+        return super(AutoUniformValGen, self).generate(shape, dtype)
 
 
 class GaussianValGen(ValGen):
@@ -186,7 +184,9 @@ class GaussianValGen(ValGen):
         """
         logger.info("Generating {cl_nm} values of shape {shape}".format(
                     cl_nm=self.__class__.__name__, shape=shape))
-        return self.backend.normal(self.loc, self.scale, shape, dtype)
+        return gen_weights(self.backend, self.is_local, 'normal',
+                           loc=self.loc, scale=self.scale, size=shape,
+                           dtype=dtype)
 
 
 # alias NormalValGen as GaussianValGen
@@ -269,6 +269,7 @@ class NodeNormalizedValGen(ValGen):
         return (super(NodeNormalizedValGen, self).__str__() +
                 "\n\tscale: {self.scale}".format(self=self))
 
+
     def generate(self, shape, dtype=None):
         """
         Construct and initialize a new Tensor object of the specified shape.
@@ -282,22 +283,17 @@ class NodeNormalizedValGen(ValGen):
         Returns:
             neon.backends.Tensor: newly initialized data structure.
         """
-        result = self.backend.empty(shape, dtype)
-        if self.backend.is_dist:
-            if self.is_local:
-                result.ptype = 'replica'
-            else:
-                shape = (shape[0] * self.backend.num_dev, shape[1])
-                result.ptype = 'vfragment'
-
         logger.info("Generating {cl_nm} values of shape {shape}".format(
                     cl_nm=self.__class__.__name__, shape=shape))
 
-        node_norm = self.scale * math.sqrt(6.0 / sum(shape))
-        hvalue = np.random.uniform(-node_norm, node_norm, shape).astype(
-                        result.dtype)
-        self.backend.set(result, hvalue)
-        return result
+        denom = sum(shape)
+        if self.backend.is_dist and not self.is_local:
+            denom *= self.backend.num_dev
+        node_norm = self.scale * math.sqrt(6.0 / denom)
+
+        return gen_weights(self.backend, self.is_local, 'uniform',
+                           low=-node_norm, high=node_norm, shape=shape,
+                           dtype=dtype)
 
 
 class OrthoNormalizedValGen(ValGen):

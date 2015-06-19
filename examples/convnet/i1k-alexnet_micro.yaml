@@ -16,7 +16,7 @@
 # (This is a quick run on the subset of the data.)
 # Compare to Caffe: https://github.com/BVLC/caffe/blob/master/models/bvlc_alexnet/train_val.prototxt
 
-!obj:experiments.FitPredictErrorExperiment {
+!obj:experiments.FitExperiment {
 
   dataset: &ds !obj:datasets.Imageset {
     repo_path: '~/data',
@@ -28,7 +28,7 @@
     macro_size: 3072,
     nclass: {l_id: 1000},
     num_channels: 3,
-    num_workers: 8,
+    num_workers: 16,
     mean_norm: True, # This just subtracts the mean, but doesn't divide by 128
     unit_norm: False, # This norms magnitude to 1
     ntrain: 24, # Delete this line to use entire dataset for training
@@ -109,7 +109,7 @@
   model: !obj:models.MLP {
     num_epochs: 10,
     batch_size: &bs 256,
-    step_print: 12,
+    # step_print: 12,
     # serialized_path: '~/data/I1K/I1K_alexnet_micro_model.prm',
     layers: [
       &datalayer !obj:layers.ImageDataLayer {

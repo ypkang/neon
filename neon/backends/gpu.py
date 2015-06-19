@@ -673,11 +673,18 @@ class GPU(Backend):
         """
         return self.ng.ones(shape, dtype=dtype)
 
-    def allocate_fragment(self, shape, dtype=default_dtype,
-                          persist_values=True):
-        return self.empty(shape, dtype=dtype, persist_values=persist_values)
+    def zeros_like(self, ary, dtype=default_dtype, persist_values=True,
+                   name=None):
+        return self.zeros(ary.shape, dtype=dtype,
+                          persist_values=persist_values)
 
-    def empty(self, shape, dtype=default_dtype, persist_values=True):
+    def empty_like(self, ary, dtype=default_dtype, persist_values=True,
+                   name=None):
+        return self.empty(ary.shape, dtype=dtype,
+                          persist_values=persist_values, name=name)
+
+    def empty(self, shape, dtype=default_dtype, persist_values=True,
+              name=None):
         """
         Allocate a new GPUTensor.
 

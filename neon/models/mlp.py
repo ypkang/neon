@@ -55,14 +55,15 @@ class MLP(Model):
         if self.initialized:
             return
         self.backend = backend
+        self.backend.batch_size = self.batch_size
         kwargs = {"backend": self.backend, "batch_size": self.batch_size,
                   "accumulate": self.accumulate}
         for ll, pl in zip(self.layers, [initlayer] + self.layers[:-1]):
             ll.initialize(kwargs)
 
-        self.nin_max = max(map(lambda x: x.nin, self.layers[1:-1]))
+        self.nin_max = max([x.nin for x in self.layers[1:-1]])
         self.global_deltas = None
-        if self.backend.num_dev > 1:
+        if self.backend.is_dist and self.backend.num_dev > 1:
             self.reuse_deltas = False
             logger.info("Not reusing delta buffer for parallel mode")
 

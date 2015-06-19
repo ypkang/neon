@@ -19,7 +19,7 @@
 
   dataset: &ds !obj:datasets.CIFAR10 {
     repo_path: '~/data',
-    sample_pct: 100,
+    sample_pct: 10,
   },
 
   metrics: {
@@ -54,8 +54,8 @@
   # CNN model specification
   # essentially a multi-layer perceptron with convolutional and pooling layers
   model: !obj:models.MLP {
-    num_epochs: 1,
-    batch_size: &bs 256,
+    num_epochs: 5,
+    batch_size: &bs 128,
     layers: [
       &datalayer !obj:layers.DataLayer {
         name: d0,

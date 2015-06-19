@@ -69,7 +69,7 @@ def passthru(method):
                     v, MGPUTensor) else v for k, v in kwargs.iteritems()}
                 tsrlist.append(getattr(tsr, method)(*myargs, **mykwargs))
                 ctx.pop()
-            return MGPUTensor(tsrlist) if tsrlist[0] is not None else None
+            return MGPUTensor(tsrlist, ptype=self.ptype) if tsrlist[0] is not None else None
         setattr(cls, method, func)
         return cls
     return decorate
@@ -297,21 +297,31 @@ class MGPU(GPU):
         return self._strms if self.async else self._nostrms
 
     def uniform(self, low=0.0, high=1.0, shape=1, dtype=default_dtype,
-                name=None):
+                name=None, ptype='replica'):
         """
         generate numpy random number and convert to a GPUTensor.
         If called with dtype=None it will probably explode
         """
-        ary = np.random.uniform(low, high, shape)
-        return self.array(ary, dtype, name)
+        assert len(shape) == 2
+        result = self.empty(shape, dtype)
+        result.ptype = ptype
+        beshape = size if ptype == 'replica' else (self.num_dev * shape[0], shape[1])
+        ary = np.random.uniform(low, high, beshape).astype(dtype)
+        self.set(result, ary)
+        return result
 
     def normal(self, loc=0.0, scale=1.0, size=1, dtype=default_dtype,
-               name=None):
+               name=None, ptype='replica'):
         """
         Gaussian/Normal random number sample generation
         """
-        ary = np.random.normal(loc, scale, size)
-        return self.array(ary, dtype, name)
+        assert len(size) == 2
+        result = self.empty(size, dtype)
+        result.ptype = ptype
+        beshape = size if ptype == 'replica' else (self.num_dev * size[0], size[1])
+        ary = np.random.normal(loc, scale, beshape).astype(dtype)
+        self.set(result, ary)
+        return result
 
     def synchronize(self):
         if not self.async:
@@ -320,7 +330,22 @@ class MGPU(GPU):
             s.synchronize()
 
     def allocate_fragment(self, shape, dtype=default_dtype):
+        # TODO: set ptype to be fragment in this case ??
         return self.empty((shape[0], shape[1] / self.num_dev), dtype)
+
+    def zeros_like(self, ary, dtype=default_dtype, persist_values=True,
+                   name=None):
+        result = self.zeros(ary.shape, dtype=dtype,
+                            persist_values=persist_values)
+        result.ptype = ary.ptype
+        return result
+
+    def empty_like(self, ary, dtype=default_dtype, persist_values=True,
+                   name=None):
+        result = self.empty(ary.shape, dtype=dtype,
+                            persist_values=persist_values, name=name)
+        result.ptype = ary.ptype
+        return result
 
     def set(self, tensor, data):
         assert isinstance(tensor, MGPUTensor)

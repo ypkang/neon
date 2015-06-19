@@ -168,4 +168,5 @@ class ConvLayer(WeightLayer):
             if self.use_biases is True:
                 self.backend.add(upm[1], self.updates[1], out=self.updates[1])
 
-        self.share_updates()
+        if self.backend.is_dist:
+            self.share_updates()

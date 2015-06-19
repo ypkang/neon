@@ -104,8 +104,8 @@ class GradientDescentMomentum(GradientDescent):
     def allocate_state(self, params):
         self.velocity = []
         for item in params:
-            self.velocity.append(self.backend.zeros(item.shape,
-                                                    self.velocity_dtype))
+            item_velocity = self.backend.zeros_like(item, self.velocity_dtype)
+            self.velocity.append(item_velocity)
 
     def apply_rule(self, params, updates, epoch):
         """

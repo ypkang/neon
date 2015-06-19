@@ -165,9 +165,8 @@ class Layer(YAMLable):
         self.pre_act = self.activation.pre_act_buffer(self.backend,
                                                       self.output,
                                                       self.pre_act_dtype)
-
-        if not self.is_local and self.backend.num_dev > 1:
-            self.output.ptype = 'replica'
+        if self.backend.is_dist:
+            self.output.ptype = 'fragment' if self.is_local else 'replica'
 
     def set_deltas_buf(self, delta_pool, offset):
         if self.is_local:
@@ -312,7 +311,7 @@ class CostLayer(Layer):
         # we just have to scale by mini-batch size
         self.set_reference()
         self.cost.apply_derivative(self.reference)
-        self.backend.divide(self.deltas, self.backend.actual_batch_size,
+        self.backend.divide(self.deltas, self.backend.batch_size,
                             out=self.deltas)
 
     def get_cost(self):
@@ -321,7 +320,7 @@ class CostLayer(Layer):
         result = self.cost.apply_function(self.reference,
                                           scale_by_batchsize=scale_cost)
         if not scale_cost:  # Check for fp16 backend and use scaling
-            self.backend.divide(result, self.output.shape[1], result)
+            self.backend.divide(result, self.backend.batch_size, result)
         if self.backend.is_dist:
             result.ptype = self.reference.ptype
         return result
@@ -548,7 +547,11 @@ class WeightLayer(Layer):
     def allocate_param_bufs(self):
         if self.params_initialized:
             return
-        make_ebuf = self.backend.empty
+        def make_ebuf(shape, dtype):
+            b = self.backend.empty(shape, dtype)
+            if self.backend.is_dist:
+                b.ptype = 'replica' if self.is_local else 'vfragment'
+            return b
 
         self.weight_init.is_local = self.is_local
         self.weights = self.weight_init.generate(self.weight_shape,
@@ -571,8 +574,8 @@ class WeightLayer(Layer):
             self.updates.extend([self.weight_updates_v])
 
         if self.accumulate:
-            self.utemp = map(lambda x: make_ebuf(x.shape, self.updates_dtype),
-                             self.updates)
+            self.utemp = [make_ebuf(
+                            x.shape, self.updates_dtype) for x in self.updates]
         for upm in self.updates:
             upm.fill(0.0)
         self.learning_rule = self.init_learning_rule(self.lrule_init)
@@ -587,20 +590,17 @@ class WeightLayer(Layer):
         if self.backend.is_dist:
             # Create a mempool used for sharing in parallel mode
             self.make_mempool()
-            ptype = 'replica' if self.is_local else 'vfragment'
-            self.weights.ptype = ptype
-            if hasattr(self, 'biases'):
-                self.biases.ptype = ptype
 
         self.params_initialized = True
 
     def share_updates(self):
-        if self.mempool is not None and self.is_local:
-            for dbuf in self.updates:
-                nr = self.backend.num_dev
-                poolsize = -(-dbuf.size // nr) * nr
-                ubuf = self.mempool[:poolsize]
-                self.backend.reduce(dbuf, ubuf)
+        assert self.backend.is_dist and self.is_local
+        assert self.mempool is not None
+        for dbuf in self.updates:
+            nr = self.backend.num_dev
+            poolsize = -(-dbuf.size // nr) * nr
+            ubuf = self.mempool[:poolsize]
+            self.backend.reduce(dbuf, ubuf)
 
     def update(self, epoch):
         if self.bias_rule is None:

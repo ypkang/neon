@@ -93,10 +93,10 @@
     backend_type: *bt,
     batch_norm: &bn True, ################################################
     num_epochs: 10, #74 in paper      ############################
-    batch_size: &bs 64, ################################# 128 only fits fp16
-    step_print: 24,
+    batch_size: &bs 256, ################################# 128 only fits fp16
+    step_print: 12,
     reuse_deltas: True,
-    serialized_path: '~/data/I1K/I1K_vgg_model.prm',
+    # serialized_path: '~/data/I1K/I1K_vgg_model.prm',
     layers: [
       &datalayer !obj:layers.ImageDataLayer {
         name: d0,

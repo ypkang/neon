@@ -217,7 +217,7 @@ class Dataset(object):
         Returns:
             list: List of device loaded mini-batches of data.
         """
-        bs = self.backend.actual_batch_size
+        bs = self.backend.batch_size
         if data.shape[0] % bs != 0:
             logger.warning('Incompatible batch size. Discarding %d samples...',
                            data.shape[0] % bs)

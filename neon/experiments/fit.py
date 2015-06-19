@@ -58,7 +58,6 @@ class FitExperiment(Experiment):
             return
         self.backend = backend
         self.model.link()
-        self.backend.par.init_model(self.model, self.backend)
         self.model.initialize(backend)
         self.initialized = True
 
@@ -108,5 +107,4 @@ class FitExperiment(Experiment):
         self.model.fit(self.dataset)
 
         if hasattr(self.model, 'serialized_path'):
-            if self.backend.rank() == 0:
-                serialize(self.model.get_params(), self.model.serialized_path)
+            serialize(self.model.get_params(), self.model.serialized_path)

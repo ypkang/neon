@@ -44,14 +44,14 @@ class MacrobatchDecodeThread(Thread):
 
     def run(self):
         import imgworker
-        bsz = self.ds.actual_batch_size
+        bsz = self.ds.batch_size
         b_idx = self.ds.macro_decode_buf_idx
         jdict = self.ds.get_macro_batch()
         betype = self.ds.backend_type
         ibetype = self.ds.img_dtype
         # This macrobatch could be smaller than macro_size for last macrobatch
         mac_sz = len(jdict['data'])
-
+        self.mac_sz = mac_sz
         if self.ds.shuffle_macro:
             shuffidx = range(mac_sz)
             shuffle(shuffidx)
@@ -63,22 +63,17 @@ class MacrobatchDecodeThread(Thread):
             jdict['targets'] if 'targets' in jdict else None
         lbl_macro = {k: jdict['labels'][k] for k in self.ds.label_list}
 
-        uimg_macro = np.zeros((self.ds.macro_size, self.ds.npixels),
-                             dtype=np.uint8)
 
         do_center = self.ds.predict or not self.ds.dotransforms
         do_flip = self.ds.dotransforms
         imgworker.decode_list(jpglist=jdict['data'],
-                              tgt=uimg_macro[:mac_sz],
+                              tgt=self.ds.uimg_macro[b_idx][:mac_sz],
                               orig_size=self.ds.output_image_size,
                               crop_size=self.ds.cropped_image_size,
                               center=do_center, flip=do_flip,
                               rgb=self.ds.rgb,
                               nthreads=self.ds.num_workers)
-        np.subtract(uimg_macro, self.ds.mean_val, self.ds.img_macro[b_idx])
 
-        if mac_sz < self.ds.macro_size:
-            self.ds.img_macro[b_idx][mac_sz:] = 0
         # Leave behind the partial minibatch
         self.ds.minis_per_macro[b_idx] = mac_sz / bsz
         for lbl in self.ds.label_list:
@@ -88,6 +83,12 @@ class MacrobatchDecodeThread(Thread):
                         ibetype, order='C')
             if mac_sz < self.ds.macro_size:
                 self.ds.lbl_one_hot[b_idx][lbl][mac_sz:] = 0
+
+        np.subtract(self.ds.uimg_macro[b_idx], self.ds.mean_val,
+                    self.ds.img_macro[b_idx])
+
+        if mac_sz < self.ds.macro_size:
+            self.ds.img_macro[b_idx][mac_sz:] = 0
         return
 
 
@@ -251,18 +252,20 @@ class Imageset(Dataset):
         self.macro_decode_thread = None
 
         self.batch_size = batch_size
-        self.actual_batch_size = self.backend.actual_batch_size
         self.predict = predict
-        self.minis_per_macro = [self.macro_size / self.actual_batch_size
+        self.minis_per_macro = [self.macro_size / self.batch_size
                                 for i in range(self.macro_num_decode_buf)]
 
-        if self.macro_size % self.actual_batch_size != 0:
+        if self.macro_size % self.batch_size != 0:
             raise ValueError('self.macro_size not divisible by batch_size')
 
         self.macro_idx = self.endb
         self.mini_idx = -1
 
         # Allocate space for host side image, targets and labels
+        self.uimg_macro = [np.zeros((self.macro_size, self.npixels),
+                                        dtype=np.uint8) for i in
+                           range(self.macro_num_decode_buf)]
         self.img_macro = [sbhe((self.macro_size, self.npixels),
                                    dtype=ibetype) for i in
                           range(self.macro_num_decode_buf)]
@@ -273,12 +276,12 @@ class Imageset(Dataset):
 
 
         # Allocate space for device side buffers
-        inp_shape = (self.npixels, self.actual_batch_size)
+        inp_shape = (self.npixels, self.batch_size)
         self.inp_be = sbaf(inp_shape, dtype=ibetype)
         self.inp_be.name = "minibatch"
         self.inp_beT = sbe(self.inp_be.shape[::-1], dtype=ibetype)
 
-        lbl_shape = {lbl: (self.nclass[lbl], self.actual_batch_size)
+        lbl_shape = {lbl: (self.nclass[lbl], self.batch_size)
                      for lbl in self.label_list}
         self.lbl_be = {lbl: sbe(lbl_shape[lbl], dtype=ibetype)
                        for lbl in self.label_list}
@@ -295,7 +298,6 @@ class Imageset(Dataset):
     def get_mini_batch(self, batch_idx):
         b_idx = self.macro_active_buf_idx
         self.mini_idx = (self.mini_idx + 1) % self.minis_per_macro[b_idx]
-
         # Decode macrobatches in a background thread,
         # except for the first one which blocks
         if self.mini_idx == 0:
@@ -317,8 +319,8 @@ class Imageset(Dataset):
 
         # All minibatches except for the 0th just copy pre-prepared data
         b_idx = self.macro_active_buf_idx
-        s_idx = self.mini_idx * self.actual_batch_size
-        e_idx = (self.mini_idx + 1) * self.actual_batch_size
+        s_idx = self.mini_idx * self.batch_size
+        e_idx = (self.mini_idx + 1) * self.batch_size
 
         himg, hlbl = None, None
         # Copy into device and then transpose on device
@@ -331,7 +333,6 @@ class Imageset(Dataset):
         for lbl in self.label_list:
             hlbl = self.lbl_one_hot[b_idx][lbl][s_idx:e_idx]
             self.lbl_beT[lbl].copy_from(hlbl)
-            # self.backend.scatter(hlbl, self.lbl_beT[lbl])
 
         for lbl in self.label_list:
             self.backend.transpose(self.lbl_beT[lbl], self.lbl_be[lbl])

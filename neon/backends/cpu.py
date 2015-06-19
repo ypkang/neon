@@ -245,7 +245,6 @@ class CPU(Backend):
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
         self.err_init()
-        self.par = None
         self.rng_init()
 
     def default_dtype_if_missing(self, in_dtype):
@@ -1201,7 +1200,7 @@ class CPU(Backend):
                 eslice = eslice.transpose()
             if local is False:
                 self.dot(inputs.take(rflinks, axis=0), eslice, out=updatebuf)
-                self.add(out, updatebuf, out=out)
+                self.add(out, updatebuf.reshape(out.shape), out=out)
             else:
                 self.dot(inputs.take(rflinks, axis=0), eslice,
                          out=out[(fsize*dst):(fsize*(dst+1))])
