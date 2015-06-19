@@ -35,7 +35,7 @@ def normalize(X):
     return (X - min) / (max - min + 1e-6)
 
 
-class STOCKPRICE(Dataset):
+class StockPrice(Dataset):
 
     """
     Sets up AAPL stock price dataset.
@@ -52,7 +52,7 @@ class STOCKPRICE(Dataset):
     Keyword Args:
         repo_path (str, optional): where to locally host this dataset on disk
     """
-    raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/MSFT.csv'
+    raw_base_url = 'https://www.quandl.com/api/v1/datasets/WIKI/AAPL.csv'
 
     def __init__(self, **kwargs):
         self.macro_batched = False
@@ -76,6 +76,16 @@ class STOCKPRICE(Dataset):
         ### TODO: Import csv reader, parse the data
         X = numpy.genfromtxt(fname, delimiter=',')
         X = X[1:, 1:] # ignore dates and labels
+
+        # Reverse dates since data is loaded with most recent first
+        X = X[::-1]
+
+        # add momentum
+        offset = 10
+        n_examples = len(X)
+        momentum = np.zeros(n_examples)
+        momentum[offset:] = X[:, 0][offset:] - X[:, 0][:-offset]
+        X = np.hstack([X, momentum.reshape(-1, 1)])
 
         # normalize to 0 through 1
         # TODO: move split parameters to YAML

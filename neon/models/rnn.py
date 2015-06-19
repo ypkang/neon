@@ -474,12 +474,12 @@ class RNN(MLP):
 
         # self.backend.zeros replaced by np.zeros to support 3d required
         # for finance example
-        # TODO: replace 12 with n_features
+        # TODO: replace 13 with n_features
         import numpy as np
         outputs_pred = np.zeros((self.data_layer.num_batches *
-                                           self.unrolls, self.batch_size, 12))
+                                           self.unrolls, self.batch_size, 13))
         outputs_targ = np.zeros((self.data_layer.num_batches *
-                                           self.unrolls, self.batch_size, 12))
+                                           self.unrolls, self.batch_size, 13))
 
         mb_id = 0
         self.data_layer.reset_counter()
@@ -504,8 +504,8 @@ class RNN(MLP):
         self.data_layer.cleanup()
 
         # flatten the 2d predictions into our canonical 1D format
-        pred_flat = outputs_pred.transpose().reshape((12, -1))
-        targ_flat = outputs_targ.transpose().reshape((12, -1))
+        pred_flat = outputs_pred.transpose().reshape((13, -1))
+        targ_flat = outputs_targ.transpose().reshape((13, -1))
 
         np.savetxt(setname + '-pred.txt', pred_flat)
         np.savetxt(setname + '-true.txt', targ_flat)
