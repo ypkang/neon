@@ -601,8 +601,10 @@ class WeightLayer(Layer):
             poolsize = -(-dbuf.size // nr) * nr
             ubuf = self.mempool[:poolsize]
             self.backend.reduce(dbuf, ubuf)
-        # self.backend.divide(self.bn._beta_updates, self.num_dev,
-        #                     out=self.bn._beta_updates)
+        self.backend.divide(self.bn._beta_updates, self.backend.num_dev,
+                            out=self.bn._beta_updates)
+        self.backend.divide(self.bn._gamma_updates, self.backend.num_dev,
+                            out=self.bn._gamma_updates)
 
     def update(self, epoch):
         if self.bias_rule is None:

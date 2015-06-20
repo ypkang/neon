@@ -91,21 +91,28 @@ class BatchNorm(Activation):
 
         self._xhat = make_zbuf(self.in_shape, dtype=self.dtype)
 
-        self._mean = self.backend.zeros(self.in1d, dtype=self.bigtype)
-        self._vars = self.backend.zeros(self.in1d, dtype=self.bigtype)
-
-        # Global mean and var to be used during inference
-        self._gmean = self.backend.zeros(self.in1d, dtype=self.bigtype)
-        self._gvars = self.backend.zeros(self.in1d, dtype=self.bigtype)
+        bgtype = self.bigtype
+        self._mean = self.backend.zeros(self.in1d, dtype=bgtype)
+        self._vars = self.backend.zeros(self.in1d, dtype=bgtype)
 
         # learned params and their update buffers
-        self._beta = self.backend.zeros(self.in1d, dtype=self.bigtype)
-        self._gamma = self.backend.ones(self.in1d, dtype=self.bigtype)
+        self._beta = self.backend.zeros(self.in1d, dtype=bgtype)
+        self._gamma = self.backend.ones(self.in1d, dtype=bgtype)
         self.layer.params.extend([self._beta, self._gamma])
 
-        self._beta_updates = self.backend.zeros(self.in1d, dtype=self.bigtype)
-        self._gamma_updates = self.backend.zeros(self.in1d, dtype=self.bigtype)
+        if self.backend.is_dist:
+            self._beta.ptype = self._gamma.ptype = 'replica'
+            self._mean.ptype = self._vars.ptype = 'replica'
+
+        # Global mean and var to be used during inference
+        self._gmean = self.backend.zeros_like(self._mean, dtype=bgtype)
+        self._gvars = self.backend.zeros_like(self._vars, dtype=bgtype)
+
+        self._beta_updates = self.backend.zeros_like(self._beta, dtype=bgtype)
+        self._gamma_updates = self.backend.zeros_like(self._gamma, dtype=bgtype)
         self.layer.updates.extend([self._beta_updates, self._gamma_updates])
+
+
 
     # MGPU Note:  Batch norm params can always be thought of as replicas
     def get_params(self):
@@ -113,8 +120,6 @@ class BatchNorm(Activation):
         for p in ['_gamma', '_beta', '_gmean', '_gvars']:
             if hasattr(self, p):
                 p_tensor = getattr(self, p)
-                if hasattr(p_tensor, 'ptype'):
-                    p_tensor.ptype = 'replica'
                 np_params[p] = p_tensor.asnumpyarray()
         return np_params
 
@@ -122,8 +127,6 @@ class BatchNorm(Activation):
         for p in ['_gamma', '_beta', '_gmean', '_gvars']:
             if p in params_dict:
                 p_tensor = getattr(self, p)
-                if hasattr(p_tensor, 'ptype'):
-                    p_tensor.ptype = 'replica'
                 self.backend.set(p_tensor, params_dict[p])
 
     def set_inference_mode(self):
