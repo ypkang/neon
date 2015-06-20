@@ -69,11 +69,11 @@ else
   ifeq ($(GPU), cudanet)
     INSTALL_REQUIRES := $(INSTALL_REQUIRES) \
       'git+https://github.com/NervanaSystems/cuda-convnet2.git\#egg=cudanet>=0.2.7' \
-      'pycuda>=2014.1'
+      'pycuda>=2015.1'
   endif
   ifeq ($(GPU), nervanagpu)
     INSTALL_REQUIRES := $(INSTALL_REQUIRES) \
-      'git+https://github.com/NervanaSystems/nervanagpu.git\#egg=nervanagpu>=0.3.2'
+      'git+https://github.com/NervanaSystems/nervanagpu.git\#egg=nervanagpu>=0.3.3'
   endif
 endif
 ifeq ($(DIST), 0)

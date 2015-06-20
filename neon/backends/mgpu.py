@@ -305,7 +305,7 @@ class MGPU(GPU):
         assert len(shape) == 2
         result = self.empty(shape, dtype)
         result.ptype = ptype
-        beshape = size if ptype == 'replica' else (self.num_dev * shape[0], shape[1])
+        beshape = shape if ptype == 'replica' else (self.num_dev * shape[0], shape[1])
         ary = np.random.uniform(low, high, beshape).astype(dtype)
         self.set(result, ary)
         return result

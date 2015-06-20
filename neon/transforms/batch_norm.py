@@ -113,13 +113,18 @@ class BatchNorm(Activation):
         for p in ['_gamma', '_beta', '_gmean', '_gvars']:
             if hasattr(self, p):
                 p_tensor = getattr(self, p)
+                if hasattr(p_tensor, 'ptype'):
+                    p_tensor.ptype = 'replica'
                 np_params[p] = p_tensor.asnumpyarray()
         return np_params
 
     def set_params(self, params_dict):
         for p in ['_gamma', '_beta', '_gmean', '_gvars']:
             if p in params_dict:
-                self.backend.set(getattr(self, p), params_dict[p])
+                p_tensor = getattr(self, p)
+                if hasattr(p_tensor, 'ptype'):
+                    p_tensor.ptype = 'replica'
+                self.backend.set(p_tensor, params_dict[p])
 
     def set_inference_mode(self):
         """
