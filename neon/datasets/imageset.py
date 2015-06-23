@@ -291,6 +291,7 @@ class Imageset(Dataset):
         if self.backend.is_dist:
             for lbl in self.label_list:
                 self.lbl_be[lbl].ptype = 'replica'
+                self.lbl_beT[lbl].ptype = 'replica'
 
         self.tgt_be = None
         return num_batches
@@ -332,7 +333,7 @@ class Imageset(Dataset):
         # the output layer is fully-connected
         for lbl in self.label_list:
             hlbl = self.lbl_one_hot[b_idx][lbl][s_idx:e_idx]
-            self.lbl_beT[lbl].copy_from(hlbl)
+            self.backend.set(self.lbl_beT[lbl], hlbl)
 
         for lbl in self.label_list:
             self.backend.transpose(self.lbl_beT[lbl], self.lbl_be[lbl])

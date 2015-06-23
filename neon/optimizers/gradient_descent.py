@@ -106,8 +106,8 @@ class GradientDescentMomentum(GradientDescent):
         for item in params:
             item_velocity = self.backend.zeros_like(item, self.velocity_dtype)
             self.velocity.append(item_velocity)
-            if self.backend.is_dist:
-                logger.warning("allocating state " + " " + item.ptype + str(item.shape) + self.name)
+            # if self.backend.is_dist:
+            #     logger.warning("allocating state " + " " + item.ptype + str(item.shape) + self.name)
 
     def apply_rule(self, params, updates, epoch):
         """

@@ -227,11 +227,13 @@ class MGPU(GPU):
 
         self.ctxs = []
         self._strms = []
+        self._cpystrms = [[] for i in self.dev_list]
+
         self.async = True
         self._nostrms = [None for i in self.dev_list]
 
         for i in self.dev_list:
-            self.ctxs.append(drv.Device(i).make_context())
+            self.ctxs.append(drv.Device(i).make_context(drv.ctx_flags.SCHED_BLOCKING_SYNC))
             self._strms.append(drv.Stream())
             self.ctxs[i].pop()
 
@@ -263,6 +265,13 @@ class MGPU(GPU):
                           '{:d} and {:d}'.format(d1, d2))
             self.ctxs[d1].pop()
 
+        for i in range(len(self.dev_list)):
+            d1 = self.dev_list[i]
+            self.ctxs[d1].push()
+            for j in range(len(self.dev_list)):
+                d2 = self.dev_list[j]
+                self._cpystrms[j].append(drv.Stream())
+            self.ctxs[d1].pop()
         self.device_id = device_id if device_id is not None else 0
 
     # These definitions are for performing grouped context commands
@@ -296,6 +305,10 @@ class MGPU(GPU):
     def strms(self):
         return self._strms if self.async else self._nostrms
 
+    @property
+    def cpystrms(self):
+        return self._cpystrms if self.async else self._cpynostrms
+
     def uniform(self, low=0.0, high=1.0, shape=1, dtype=default_dtype,
                 name=None, ptype='replica'):
         """
@@ -328,6 +341,13 @@ class MGPU(GPU):
             return
         for s in self.strms:
             s.synchronize()
+
+    def cpysynchronize(self):
+        if not self.async:
+            return
+        for slist in self.cpystrms:
+            for s in slist:
+                s.synchronize()
 
     def allocate_fragment(self, shape, dtype=default_dtype):
         # TODO: set ptype to be fragment in this case ??
@@ -588,10 +608,12 @@ class MGPU(GPU):
         dsz = ary.dtype.itemsize
         assert ubuf.size == subsz * numrep
         starts = [i * subsz for i in range(numrep)]
-
-        for dbuf, dctx, doff in zip(ubuf.tlist, self.ctxs, starts):
+        strmlists = self.cpystrms
+        self.synchronize()
+        for dbuf, dctx, doff, dstrmlist in zip(ubuf.tlist, self.ctxs, starts,
+                                               strmlists):
             for sbuf, sctx, soff, strm in zip(ary.tlist, self.ctxs,
-                                              starts, self.strms):
+                                              starts, dstrmlist):
                 myargs = [dbuf.ptr + soff * dsz,
                           sbuf.ptr + doff * dsz,
                           min(subsz, totsz - doff) * dsz]
@@ -605,7 +627,7 @@ class MGPU(GPU):
                 cpfunc(*myargs)
                 sctx.pop()
 
-        self.synchronize()
+        self.cpysynchronize()
 
         for sbuf, dbuf, sctx, soff, strm in zip(ary.tlist, ubuf.tlist,
                                                 self.ctxs, starts, self.strms):
@@ -617,16 +639,18 @@ class MGPU(GPU):
             self.ng.sum(ubtmp, axis=0, out=sbuf[soff:end])
             sctx.pop()
 
-        for dbuf, dctx in zip(ary.tlist, self.ctxs):
+        self.synchronize()
+
+        for dbuf, dctx, dstrmlist in zip(ary.tlist, self.ctxs, strmlists):
             for sbuf, sctx, soff, strm in zip(ary.tlist, self.ctxs,
-                                              starts, self.strms):
+                                              starts, dstrmlist):
                 if sctx != dctx:
                     drv.memcpy_peer_async(dbuf.ptr + soff * dsz,
                                           sbuf.ptr + soff * dsz,
                                           min(subsz, totsz - soff) * dsz,
                                           dctx, sctx, strm)
 
-        self.synchronize()
+        self.cpysynchronize()
 
         self.ng.stream = None
         return ary
