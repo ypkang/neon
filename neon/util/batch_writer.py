@@ -218,6 +218,7 @@ class BatchWriter(object):
         startlist = [self.train_start, self.val_start]
         for sname, fname, start in zip(namelist, filelist, startlist):
             logger.info("%s %s %s", sname, fname, start)
+
             if fname is not None and os.path.exists(fname):
                 imgs, labels, targets = self.parse_file_list(fname)
                 self.write_batches(sname, start, labels, imgs, targets)
@@ -251,9 +252,9 @@ class BatchWriterImagenet(BatchWriter):
         load_dir = self.in_dir
         # load_dir = os.path.join(os.path.expandvars(
         #                 os.path.expanduser(self.in_dir)), 'I1K')
-        train_tar = os.path.join(load_dir, 'ILSVRC2012_img_train.tar')
+        train_tar = os.path.join(load_dir, 'ILSVRC2012_img_train_t3.tar')
         validation_tar = os.path.join(load_dir, 'ILSVRC2012_img_val.tar')
-        devkit_tar = os.path.join(load_dir, 'ILSVRC2012_devkit_t12.tar.gz')
+        devkit_tar = os.path.join(load_dir, 'ILSVRC2012_devkit_t3.tar.gz')
         self.url = "http://www.image-net.org/download-imageurls"
         for infile in (train_tar, validation_tar, devkit_tar):
             if not os.path.exists(infile):
@@ -316,7 +317,7 @@ class BatchWriterImagenet(BatchWriter):
     def parse_dev_meta(self, ilsvrc_devkit_tar):
         tf = self.open_tar(ilsvrc_devkit_tar, 'devkit tar')
         fmeta = tf.extractfile(
-            tf.getmember('ILSVRC2012_devkit_t12/data/meta.mat'))
+            tf.getmember('ILSVRC2012_devkit_t3/data/meta.mat'))
         import scipy.io
         meta_mat = scipy.io.loadmat(StringIO(fmeta.read()))
         labels_dic = dict(
@@ -330,7 +331,7 @@ class BatchWriterImagenet(BatchWriter):
             key=lambda x:x[0])]
 
         fvgtruth = tf.extractfile(tf.getmember(
-            'ILSVRC2012_devkit_t12/data/' +
+            'ILSVRC2012_devkit_t3/data/' +
             'ILSVRC2012_validation_ground_truth.txt'))
         vgtruth = [[int(line.strip()) - 1] for line in fvgtruth.readlines()]
         tf.close()

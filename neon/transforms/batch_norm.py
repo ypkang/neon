@@ -133,7 +133,10 @@ class BatchNorm(Activation):
             m = self.batch_size
             if self.is_local:
                 m *= self.ofmsize
-            unbiaser = float(m / (m - 1.))
+            if m == 1:
+                unbiaser = 0.0
+            else:
+                unbiaser = float(m / (m - 1.))
             self.backend.multiply(self._gvars, unbiaser, self._iscale)
             self.backend.add(self._iscale, self._eps, self._iscale)
             self.backend.sqrt(self._iscale, out=self._iscale)
