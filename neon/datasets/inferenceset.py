@@ -53,12 +53,21 @@ class Inferenceset(Dataset):
 
         for imageind, filename in enumerate(imagelist):
             img = io.imread(filename, as_grey=False)
+
+            # convert RGB to BGR to coordinate with caffe
+            r_col = copy.deepcopy(img[:,:,0])
+            img[:,:,0] = copy.deepcopy(img[:,:,2])
+            img[:,:,2] = copy.deepcopy(r_col)
             imgdims[imageind] = np.mean(img.shape)
-            img = transform.resize(img, (self.image_width, self.image_width))
+            #img = transform.resize(img, (self.image_width, self.image_width))
 
             img = np.float32(img)
-
-            inputs[imageind] = img.ravel()
+            
+            for c in np.arange(self.nchannels):
+                for w in np.arange(self.image_width):
+                    for h in np.arange(self.image_width):
+                        inputs[imageind][c*self.framesize + w*self.image_width + h] = img[w][h][c]
+            #inputs[imageind] = img.ravel()
 
 #        for classind in range(nclasses):
 #            for filename in filetree[classind]:

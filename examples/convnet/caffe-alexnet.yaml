@@ -97,9 +97,9 @@
 
   model: !obj:models.MLP {
     backend_type: *bt,
-    batch_norm: &bn True,
+    batch_norm: &bn False,
     num_epochs: 1,
-    batch_size: &bs 64,
+    batch_size: &bs 1,
     step_print: 1,
     deserialized_path: './caffe-alexnet.pkl',
 
@@ -118,13 +118,19 @@
         brule_init: *gdm,
         weight_init: !obj:params.AutoUniformValGen {
           relu: True,
-          islocal: True,
+          islocal: False,
           bias_init: 0.0,
         },
         nofm: 96,
         fshape: [11, 11],
         stride: 4,
         activation: !obj:transforms.RectLin {},
+      },
+      !obj:layers.CrossMapResponseNormLayer {
+        name: rnorm1,
+        ksize: 5,
+        alpha: 0.0001,
+        beta: 0.75,
       },
       !obj:layers.PoolingLayer {
         name: pool1,
@@ -141,13 +147,19 @@
         brule_init: *gdm,
         weight_init: !obj:params.AutoUniformValGen {
           relu: True,
-          islocal: True,
+          islocal: False,
           bias_init: 1.0,
         },
         nofm: 256,
         fshape: [5, 5],
         pad: 2,
         activation: !obj:transforms.RectLin {},
+      },
+      !obj:layers.CrossMapResponseNormLayer {
+        name: rnorm2,
+        ksize: 5,
+        alpha: 0.0001,
+        beta: 0.75,
       },
       !obj:layers.PoolingLayer {
         name: pool2,
@@ -164,7 +176,7 @@
         brule_init: *gdm,
         weight_init: !obj:params.AutoUniformValGen {
           relu: True,
-          islocal: True,
+          islocal: False,
           bias_init: 0.0,
         },
         nofm: 384,
@@ -180,7 +192,7 @@
         brule_init: *gdm,
         weight_init: !obj:params.AutoUniformValGen {
           relu: True,
-          islocal: True,
+          islocal: False,
           bias_init: 1.0,
         },
         nofm: 384,
@@ -196,7 +208,7 @@
         brule_init: *gdm,
         weight_init: !obj:params.AutoUniformValGen {
           relu: True,
-          islocal: True,
+          islocal: False,
           bias_init: 1.0,
         },
         nofm: 256,
@@ -249,17 +261,6 @@
         weight_init: *wt_initout,
         nout: 1000,
         activation: !obj:transforms.Softmax  {},
-      },
-      &costlayer !obj:layers.CostLayer {
-        name: cost,
-        ref_layer: *datalayer,
-        ref_label: 'labels',
-        raw_label: False, # Default is False
-        cost: !obj:transforms.CrossEntropy {
-          backend_type: *bt,
-          epsilon: 0.0005,
-          scale: 1000,
-        },
       },
     ],
   },
