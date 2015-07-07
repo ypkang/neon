@@ -262,6 +262,17 @@
         nout: 1000,
         activation: !obj:transforms.Softmax  {},
       },
+      &costlayer !obj:layers.CostLayer {
+        name: cost,
+        ref_layer: *datalayer,
+        ref_label: 'labels',
+        raw_label: False, # Default is False
+        cost: !obj:transforms.CrossEntropy {
+          backend_type: *bt,
+          epsilon: 0.0005,
+          scale: 1000,
+        },
+      }
     ],
   },
 

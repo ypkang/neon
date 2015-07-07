@@ -22,6 +22,8 @@ from neon.backends.backend import Block
 from neon.models.model import Model
 from neon.util.param import opt_param, req_param
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 
@@ -201,6 +203,9 @@ class MLP(Model):
         while self.data_layer.has_more_data():
             self.fprop()
             outputs = self.get_classifier_output()
+
+            logger.info("Image class is %s", np.argmax(outputs.asnumpyarray()))
+
             reference = self.cost_layer.get_reference()
             yield (outputs, reference)
 
@@ -242,6 +247,7 @@ class MLP(Model):
             start = batch * self.batch_size
             end = start + self.batch_size
             outputs[:, start:end] = batch_preds
+            
             reference[:, start:end] = batch_refs
             batch += 1
 
