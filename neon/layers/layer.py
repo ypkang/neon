@@ -178,6 +178,12 @@ class Layer(YAMLable):
     def make_links(self, nifm, ifmsize, ifmshape, ofmshape, fshape, stride):
         # Figure out local connections to the previous layer.
         # This function works for any number of dimensions.
+
+        # for padding
+        if self.pad != 0:
+            ifmshape = [ifmshape[0]+2*self.pad, ifmshape[1]+2*self.pad]
+            ifmsize = ifmshape[0] * ifmshape[1]
+
         ndims = len(ifmshape)
         dimsizes = np.empty(ndims, dtype='int32')
         for dim in range(ndims):

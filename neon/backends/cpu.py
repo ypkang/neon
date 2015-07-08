@@ -19,6 +19,7 @@ wraps :mod:`numpy` ndarray and related operations
 
 import logging
 import numpy as np
+import copy
 
 from neon.backends.backend import Backend, Tensor
 from neon.util.compat import range
@@ -1059,6 +1060,7 @@ class CPU(Backend):
             padding (int): Number of additional elements to include along each
                            dimension of each local receptive field during the
                            convolution operation.
+                           NOTE: Negative value of the number of padding elements
             stride (int): Number of neurons to shift the filter at each step.
             ngroups (int): Number of groups.
             fpropbuf (CPUTensor): Temporary storage buffer used to hold the
@@ -1067,6 +1069,54 @@ class CPU(Backend):
             local (bool, optional): Whether to do local filtering (True) or
                                     convolution (False, the default)
         """
+
+        if(padding != 0):
+            # pad zeros to inputs
+            # added by ypkang
+            # first convert negpad to pad
+            pad = -padding
+            
+            inputs_arr = inputs.asnumpyarray()
+
+            # reshape into 4D array
+            inputs_4d = inputs_arr.reshape((inputs_arr.shape[1], nifm, ifmshape[0], ifmshape[1]), order='C')
+            np.savetxt("./inputs_4d.txt", inputs_4d[0][0], delimiter=" ", newline="\n", fmt="%.4f")
+
+            # figure out the correct input ifmsize
+            padded_ifmshape = [ifmshape[0] + 2*pad, ifmshape[1] + 2*pad]
+
+            # allocate space for padded inputs
+            padded_ifmsize = padded_ifmshape[0] * padded_ifmshape[1] * nifm
+            padded_inputs = np.zeros((padded_ifmsize, inputs_arr.shape[1]), dtype=np.float32)
+
+            padded_h = padded_ifmshape[0]
+            padded_w = padded_ifmshape[1]
+
+            # iterate over inputs and copy over
+            for batch in np.arange(inputs_arr.shape[1]):
+                # for each batch
+                for c in np.arange(nifm):
+                    # for each input feature map/channel
+                    for row in np.arange(ifmshape[0]):
+                        # for each input row
+                        # slice the column and copy it to the correct place
+                        padded_idx_start = c*padded_h*padded_w + row*padded_w + pad
+                        padded_idx_end = padded_idx_start + ifmshape[1] 
+
+                        inputs_idx_start = c*ifmshape[0]*ifmshape[1] + row*ifmshape[1]
+                        inputs_idx_end = inputs_idx_start + ifmshape[1] 
+                        padded_inputs[:,batch][padded_idx_start:padded_idx_end] = copy.deepcopy(inputs_arr[:,batch][inputs_idx_start:inputs_idx_end])
+                
+            # create a new tensor
+            padded_tensor = CPUTensor(padded_inputs, dtype=np.float32)
+            inputs = copy.deepcopy(padded_tensor)
+            
+            inputs_arr = inputs.asnumpyarray()
+
+            # reshape into 4D array
+            inputs_4d = inputs_arr.reshape((1, nifm, padded_h, padded_w), order='C')
+            np.savetxt('./padded_4d.txt', inputs_4d[0][0], delimiter=' ', newline='\n', fmt='%.4f')
+
         fsize = links.shape[1]
         for dst in range(ofmsize):
             # Compute the weighted average of the receptive field
@@ -1081,7 +1131,7 @@ class CPU(Backend):
                          inputs.take(rflinks, axis=0), out=fpropbuf)
 
             out[ofmlocs[dst]] = fpropbuf
-
+        
     def bprop_conv(self, out, weights, deltas, ofmshape, ofmsize, ofmlocs,
                    ifmshape, links, padding, stride, nifm, ngroups, bpropbuf,
                    local=False):
