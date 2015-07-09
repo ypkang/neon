@@ -42,8 +42,7 @@
   },
 
   dataset: &ds !obj:datasets.Inferenceset {
-    repo_path: '~/dataset/IMC',
-    live: True,
+    repo_path: './input/imc',
     nchannels: 3,
     image_width: 227,
     input_type: image,
@@ -104,7 +103,7 @@
     num_epochs: 1,
     batch_size: &bs 1,
     step_print: 1,
-    deserialized_path: './caffe-alexnet.pkl',
+    deserialized_path: './models/caffe-alexnet.pkl',
 
     layers: [
       &datalayer !obj:layers.ImageDataLayer {
