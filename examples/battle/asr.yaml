@@ -1,0 +1,201 @@
+# ----------------------------------------------------------------------------
+# Copyright 2014 Nervana Systems Inc.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ----------------------------------------------------------------------------
+# Experiment settings to train/test the AlexNet CNN on ImageNet.
+# 32-bit floating point (fp-32) is used in this model.
+# Batch norm is used in addition to standard AlexNet
+
+
+!obj:experiments.FitPredictErrorExperiment {
+
+  metrics: {
+    test: [
+      !obj:metrics.MisclassPercentage {error_rank: 1},
+      !obj:metrics.MisclassPercentage {error_rank: 5},
+    ],
+  },
+
+  diagnostics: {
+    timing: False,
+    decorate_fc: [fprop_fc, bprop_fc, update_fc],
+    decorate_conv: [fprop_conv, bprop_conv, update_conv],
+    decorate_ew: [rectlin, add, subtract, multiply, divide, greater, not_equal,
+                  clip, log, argmax],
+
+    ranges: False,
+    verbosity: silent,
+    prefix: i1k16-micro,
+    decorate_ranges: [gdmwd_compound, fprop_fc, bprop_fc, update_fc, fprop_conv,
+                      bprop_conv, update_conv],
+  },
+
+  dataset: &ds !obj:datasets.Generic {
+    repo_path: './input/asr/',
+    input_type: floats,
+    backend_type: &bt np.float32,
+  },
+
+  weight_inits: [
+    # Init for the two FC layers
+    &wt_init_fc !obj:params.AutoUniformValGen {
+      relu: True,
+      bias_init: 1.0,
+    },
+    # used for lastlayer
+    &wt_initout !obj:params.AutoUniformValGen {
+      relu: True,
+      bias_init: -7.0,
+    },
+  ],
+
+  lrule: &gdm {
+    type: gradient_descent_momentum,
+    backend_type: *bt,
+    lr_params: {
+      learning_rate: 0.0002,
+      schedule: {
+              type: step,
+              ratio: 0.1,
+              step_epochs: 20,
+      },
+      momentum_params: {
+        type: constant,
+        initial_coef: 0.90,
+      },
+    },
+  },
+
+  lrule: &gdmwd {
+    type: gradient_descent_momentum_weight_decay,
+    lr_params: {
+      learning_rate: 0.0001,
+      weight_decay: .0005,
+      schedule: {
+              type: step,
+              ratio: 0.1,
+              step_epochs: 20,
+      },
+      momentum_params: {
+        type: constant,
+        initial_coef: 0.90,
+      },
+    },
+  },
+
+
+  model: !obj:models.MLP {
+    backend_type: *bt,
+    batch_norm: &bn False,
+    num_epochs: 1,
+    batch_size: &bs 1,
+    step_print: 1,
+    deserialized_path: './model/caffe-asr.pkl',
+
+    layers: [
+      !obj:layers.FCLayer {
+        name: fc1,
+        backend_type: *bt,
+        batch_norm: *bn,
+        lrule_init: *gdmwd,
+        brule_init: *gdm,
+        weight_init: *wt_init_fc,
+        nout: 2048,
+        activation: !obj:transforms.Logistic {},
+      },
+      !obj:layers.FCLayer {
+        name: fc2,
+        backend_type: *bt,
+        batch_norm: *bn,
+        lrule_init: *gdmwd,
+        brule_init: *gdm,
+        weight_init: *wt_init_fc,
+        nout: 2048,
+        activation: !obj:transforms.Logistic {},
+      },
+      !obj:layers.FCLayer {
+        name: fc3,
+        backend_type: *bt,
+        batch_norm: *bn,
+        lrule_init: *gdmwd,
+        brule_init: *gdm,
+        weight_init: *wt_init_fc,
+        nout: 2048,
+        activation: !obj:transforms.Logistic {},
+      },
+      !obj:layers.FCLayer {
+        name: fc4,
+        backend_type: *bt,
+        batch_norm: *bn,
+        lrule_init: *gdmwd,
+        brule_init: *gdm,
+        weight_init: *wt_init_fc,
+        nout: 2048,
+        activation: !obj:transforms.Logistic {},
+      },
+      !obj:layers.FCLayer {
+        name: fc5,
+        backend_type: *bt,
+        batch_norm: *bn,
+        lrule_init: *gdmwd,
+        brule_init: *gdm,
+        weight_init: *wt_init_fc,
+        nout: 2048,
+        activation: !obj:transforms.Logistic {},
+      },      
+      !obj:layers.FCLayer {
+        name: fc6,
+        backend_type: *bt,
+        batch_norm: *bn,
+        lrule_init: *gdmwd,
+        brule_init: *gdm,
+        weight_init: *wt_init_fc,
+        nout: 2048,
+        activation: !obj:transforms.Logistic {},
+      },
+      !obj:layers.FCLayer {
+        name: fc7,
+        backend_type: *bt,
+        batch_norm: *bn,
+        lrule_init: *gdmwd,
+        brule_init: *gdm,
+        weight_init: *wt_init_fc,
+        nout: 1706,
+      },
+      &costlayer !obj:layers.CostLayer {
+        name: cost,
+        ref_layer: *datalayer,
+        ref_label: 'labels',
+        raw_label: False, # Default is False
+        cost: !obj:transforms.CrossEntropy {
+          backend_type: *bt,
+          epsilon: 0.0005,
+          scale: 1000,
+        },
+      }
+    ],
+  },
+
+  # logging options that are passed to logging.basicConfig
+  # level value thresholds (set level lower to display them):
+  #   CRITICAL 50
+  #   ERROR    40
+  #   WARNING  30
+  #   INFO     20
+  #   DEBUG    10
+  #   NOTSET    0
+  logging: {
+    level: 0,
+    format: '%(asctime)-15s %(levelname)s:%(module)s - %(message)s'
+  },
+}

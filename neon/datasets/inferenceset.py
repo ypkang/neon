@@ -77,6 +77,52 @@ class Inferenceset(Dataset):
 #                targets[imageind, classind] = 1
 #                imageind += 1
         return inputs, imagelist, imgdims
+
+    def read_flots(self, rootdir, leafdir, wildcard=''):
+
+        logger.info('Reading float number inputs from %s', leafdir)
+        repofile = os.path.join(rootdir, leafdir)
+
+        dirname = os.path.join(rootdir, leafdir, wildcard)
+
+        input_list = []
+        input_cnt = 0
+
+        # read in every files in this directory and batch them
+        for walkresult in os.walk(dirname):
+            for filename in walkresult[2]:
+                input_list.append(os.path.join(dirname, filename))
+                input_cnt += 1
+
+        input_list.sort()
+
+        inputs = np.empty((1, 440), dtype=np.float32) # NOTE: assume every input as of size 440
+
+        # Now parse the input and batch them together
+        for filename in input_list:
+            
+            # The first line gives the dimensions of the input
+            with open(filename) as f:
+                dim = [int(s) for s in f.readline().split() if s.isdigit()]
+
+            input_size = dim[0] * dim[1] * dim[2] * dim[3]
+            input_arr = np.empty((dim[0], dim[1]), dtype=np.float32)
+
+            # read line by line and fill in the array
+            with open(filename) as f:
+                f.readline() # skip the first line
+                for x in np.nditer(arr, op_flags=['readwrite'], order='C'):
+                    x[...] = float(f.readline().strip())
+
+            # concantante with the total input
+            inputs = np.concatenate(inputs, input_arr, axis=0)
+        
+        # All inputs concatenate together
+        # remove the first row which is a place holder
+        inputs = np.delete(inputs, obj=0, axis=0)
+
+        return inputs
+
     def load(self, backend=None, experiment=None):
 
         # We only need test set
