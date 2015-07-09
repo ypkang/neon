@@ -19,6 +19,7 @@
 
 !obj:experiments.FitPredictErrorExperiment {
 
+  predictions: {'test'},
   metrics: {
     test: [
       !obj:metrics.MisclassPercentage {error_rank: 1},
@@ -42,8 +43,10 @@
 
   dataset: &ds !obj:datasets.Inferenceset {
     repo_path: '~/dataset/IMC',
+    live: True,
     nchannels: 3,
     image_width: 227,
+    input_type: image,
     backend_type: &bt np.float32,
   },
 
