@@ -204,8 +204,6 @@ class MLP(Model):
             self.fprop()
             outputs = self.get_classifier_output()
 
-            logger.info("Image class is %s", np.argmax(outputs.asnumpyarray()))
-
             reference = self.cost_layer.get_reference()
             yield (outputs, reference)
 

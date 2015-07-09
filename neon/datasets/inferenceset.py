@@ -24,20 +24,15 @@ class Inferenceset(Dataset):
         self.__dict__.update(kwargs)
 
     def read_images(self, rootdir, leafdir, wildcard=''):
+        
         logger.info('Reading images from %s', leafdir)
         repofile = os.path.join(rootdir, leafdir)
-#        if not os.path.exists(repofile):
-#            if leafdir == 'train':
-#               self.download_to_repo(self.raw_train_url, rootdir)
-#            else:
-#               self.download_to_repo(self.raw_test_url, rootdir)
-#            infile = zipfile.ZipFile(repofile)
-#            infile.extractall(rootdir)
-#            infile.close()
+        
         dirname = os.path.join(rootdir, leafdir, wildcard)
 
         imagelist = []
         imagecount = 0
+        
         for walkresult in os.walk(dirname):
             for filename in walkresult[2]:
                 imagelist.append(os.path.join(dirname, filename))
@@ -59,7 +54,6 @@ class Inferenceset(Dataset):
             img[:,:,0] = copy.deepcopy(img[:,:,2])
             img[:,:,2] = copy.deepcopy(r_col)
             imgdims[imageind] = np.mean(img.shape)
-            #img = transform.resize(img, (self.image_width, self.image_width))
 
             img = np.float32(img)
             
@@ -90,16 +84,22 @@ class Inferenceset(Dataset):
             raise AttributeError('repo_path not specified in config')
 
         self.repo_path = os.path.expandvars(os.path.expanduser(self.repo_path))
-
         rootdir = self.repo_path
 
-        (self.inputs['train'], imagelist, imgdims) = self.read_images(rootdir, 'train')
-        (self.inputs['test'], imagelist, imgdims) = self.read_images(rootdir, 'test')
+        if 'input_type' not in self.__dict__:
+            raise AttributeError('input_type not specified in config (image or floats)')
+
+        if str(self.input_type) == 'image':
+            (self.inputs['train'], imagelist, imgdims) = self.read_images(rootdir, 'train')
+            (self.inputs['test'], imagelist, imgdims) = self.read_images(rootdir, 'test')
+        elif str(self.input_type) == 'floats':
+            (self.inputs['test']) = self.read_floats(rootdir, 'test')
+        else:
+            raise NotImplementedError('input type %s not implemented', str(self.input_type))
 
     def get_mini_batch(self, batch_idx=0):
 
         # return batched images
-
         bs = self.batch_size
         betype = self.backend_type
 
@@ -132,4 +132,13 @@ class Inferenceset(Dataset):
         self.lbl_be.copy_from(labels)
 
         return self.inp_be, None, {'l_id':self.lbl_be}
+
+    def process_result(self, results):
+        
+        # Results is a numpy array
+        if str(self.input_type) == 'image':
+            # get the class with the maximum probability
+            image_class = np.argmax(results)
+            # print out the result
+            logger.info("Image class lable is %s", str(image_class))
 

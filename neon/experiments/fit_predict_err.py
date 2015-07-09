@@ -19,6 +19,7 @@ is evaluated on the predictions made.
 
 import logging
 import os
+import numpy as np
 
 from neon.util.persist import serialize
 from neon.experiments.fit import FitExperiment
@@ -51,8 +52,10 @@ class FitPredictErrorExperiment(FitExperiment):
         opt_param(self, ['diagnostics'], {'timing': False, 'ranges': False})
         opt_param(self, ['metrics'], default_metric())
         opt_param(self, ['predictions'], {})
-
+    
     def initialize(self, backend):
+
+        # TODO VERY HACKY! FIX THIS
         if self.live:
             if not hasattr(self.dataset, 'live'):
                 raise AttributeError('This dataset does not support '
@@ -113,8 +116,13 @@ class FitPredictErrorExperiment(FitExperiment):
 
             outputs, targets = self.model.predict_fullset(self.dataset,
                                                           pred_set)
-            self.save_results(self.dataset, pred_set, outputs, 'inference')
-            self.save_results(self.dataset, pred_set, targets, 'targets')
+            # Process the output based on the input type
+            for batch in np.arange(self.model.batch_size):
+                self.dataset.process_result(outputs.asnumpyarray()[:,batch])
+
+            #self.save_results(self.dataset, pred_set, outputs, 'inference')
+            #self.save_results(self.dataset, pred_set, targets, 'targets')
+            
             # update any metrics for this set while we have this info
             if pred_set in self.metrics:
                 for m in self.metrics[pred_set]:
