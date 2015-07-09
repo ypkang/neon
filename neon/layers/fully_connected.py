@@ -17,6 +17,8 @@ Generic single neural network layer built to handle data from a particular
 backend.
 """
 
+import numpy as np
+
 import logging
 from neon.layers.layer import WeightLayer
 from neon.util.param import opt_param
@@ -45,6 +47,8 @@ class FCLayer(WeightLayer):
     def fprop(self, inputs):
         self.backend.fprop_fc(out=self.pre_act, inputs=inputs,
                               weights=self.weights, layer=self)
+
+        
         if self.use_biases is True:
             self.backend.add(self.pre_act, self.biases, out=self.pre_act)
         if self.batch_norm:

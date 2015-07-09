@@ -236,7 +236,7 @@
       !obj:layers.DropOutLayer {
         name: dropout1,
         backend_type: *bt,
-        keep: 0.5,
+        keep: 1.0,
       },
       !obj:layers.FCLayer {
         name: fc7,
@@ -251,7 +251,7 @@
       !obj:layers.DropOutLayer {
         name: dropout2,
         backend_type: *bt,
-        keep: 0.5,
+        keep: 1.0,
       },
       &lastlayer !obj:layers.FCLayer {
         name: fc8,

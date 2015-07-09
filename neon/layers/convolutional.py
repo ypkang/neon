@@ -23,6 +23,7 @@ from neon.util.param import opt_param, req_param
 
 logger = logging.getLogger(__name__)
 
+import numpy as np
 
 class ConvLayer(WeightLayer):
 
@@ -38,8 +39,8 @@ class ConvLayer(WeightLayer):
     def initialize(self, kwargs):
         super(ConvLayer, self).initialize(kwargs)
         self.initialize_local()
-        if self.pad != 0 and isinstance(self.backend, CPU):
-            raise NotImplementedError('pad != 0, for CPU backend in ConvLayer')
+#        if self.pad != 0 and isinstance(self.backend, CPU):
+#            raise NotImplementedError('pad != 0, for CPU backend in ConvLayer')
 
         self.allocate_output_bufs()
 
@@ -84,6 +85,7 @@ class ConvLayer(WeightLayer):
         opt_param(self, ['weight_shape'], weight_shape)
 
     def fprop(self, inputs):
+
         self.backend.fprop_conv(out=self.pre_act, inputs=inputs,
                                 weights=self.weights, ofmshape=self.ofmshape,
                                 ofmsize=self.ofmsize,
@@ -92,6 +94,8 @@ class ConvLayer(WeightLayer):
                                 padding=self.negpad, stride=self.stride,
                                 ngroups=1, fpropbuf=self.prodbuf,
                                 local=self.local_conv)
+
+        
         if self.use_biases is True:
             if self.shared_bias:
                 self.backend.add(self.pre_act_view, self.biases,
@@ -99,11 +103,13 @@ class ConvLayer(WeightLayer):
             else:
                 self.backend.add(self.pre_act, self.biases, out=self.pre_act)
 
+        
         if self.batch_norm:
             self.bn.fprop_func(self.backend,
                                self.pre_act_view, self.pre_act_view)
 
         self.activation.fprop_func(self.backend, self.pre_act, self.output)
+        
 
     def bprop(self, error):
         inputs = self.prev_layer.output
