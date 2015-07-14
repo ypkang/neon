@@ -18,6 +18,7 @@ backend.
 """
 
 import numpy as np
+import time
 
 import logging
 from neon.layers.layer import WeightLayer
@@ -53,7 +54,12 @@ class FCLayer(WeightLayer):
             self.backend.add(self.pre_act, self.biases, out=self.pre_act)
         if self.batch_norm:
             self.bn.fprop_func(self.backend, self.pre_act, self.pre_act)
+
+        start = time.time()
         self.activation.fprop_func(self.backend, self.pre_act, self.output)
+        end = time.time()
+
+        return (end-start) # return seconds, will be converted outside
 
     def bprop(self, error):
         inputs = self.prev_layer.output

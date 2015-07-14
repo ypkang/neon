@@ -24,6 +24,7 @@ from neon.util.param import opt_param, req_param
 logger = logging.getLogger(__name__)
 
 import numpy as np
+import time
 
 class ConvLayer(WeightLayer):
 
@@ -108,8 +109,12 @@ class ConvLayer(WeightLayer):
             self.bn.fprop_func(self.backend,
                                self.pre_act_view, self.pre_act_view)
 
+        start = time.time()
         self.activation.fprop_func(self.backend, self.pre_act, self.output)
+        end = time.time()
         
+        # Return timing for activation layer
+        return (end-start) # return seconds with decimal points, will be converted outside
 
     def bprop(self, error):
         inputs = self.prev_layer.output
