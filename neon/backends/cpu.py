@@ -1082,9 +1082,6 @@ class CPU(Backend):
             
             inputs_arr = inputs.asnumpyarray()
 
-            # reshape into 4D array
-            inputs_4d = inputs_arr.reshape((inputs_arr.shape[1], nifm, ifmshape[0], ifmshape[1]), order='C')
-
             # figure out the correct input ifmsize
             padded_ifmshape = [ifmshape[0] + 2*pad, ifmshape[1] + 2*pad]
 
@@ -1108,11 +1105,11 @@ class CPU(Backend):
 
                         inputs_idx_start = c*ifmshape[0]*ifmshape[1] + row*ifmshape[1]
                         inputs_idx_end = inputs_idx_start + ifmshape[1] 
-                        padded_inputs[:,batch][padded_idx_start:padded_idx_end] = copy.deepcopy(inputs_arr[:,batch][inputs_idx_start:inputs_idx_end])
+                        padded_inputs[:,batch][padded_idx_start:padded_idx_end] = inputs_arr[:,batch][inputs_idx_start:inputs_idx_end]
                 
             # create a new tensor
             padded_tensor = CPUTensor(padded_inputs, dtype=np.float32)
-            inputs = copy.deepcopy(padded_tensor)
+            inputs = padded_tensor
 
         fsize = links.shape[1]
         for dst in range(ofmsize):
