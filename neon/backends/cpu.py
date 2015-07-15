@@ -20,6 +20,7 @@ wraps :mod:`numpy` ndarray and related operations
 import logging
 import numpy as np
 import copy
+import time
 
 from neon.backends.backend import Backend, Tensor
 from neon.util.compat import range
@@ -1072,11 +1073,10 @@ class CPU(Backend):
             local (bool, optional): Whether to do local filtering (True) or
                                     convolution (False, the default)
         """
-
-        # This needs clean up
+        
         if(padding != 0):
             # pad zeros to inputs
-            # added by ypkang
+            # added by ypkang@umich.edu
             # first convert negpad to pad
             pad = -padding
             
@@ -1093,24 +1093,23 @@ class CPU(Backend):
             padded_w = padded_ifmshape[1]
 
             # iterate over inputs and copy over
-            for batch in np.arange(inputs_arr.shape[1]):
-                # for each batch
-                for c in np.arange(nifm):
-                    # for each input feature map/channel
-                    for row in np.arange(ifmshape[0]):
-                        # for each input row
-                        # slice the column and copy it to the correct place
-                        padded_idx_start = c*padded_h*padded_w + (row+pad)*padded_w + pad
-                        padded_idx_end = padded_idx_start + ifmshape[1] 
+            #for batch in np.arange(inputs_arr.shape[1]):
+            # for each batch
+            for c in np.arange(nifm):
+                # for each input feature map/channel
+                for row in np.arange(ifmshape[0]):
+                    # for each input row
+                    # slice the column and copy it to the correct place
+                    padded_idx_start = c*padded_h*padded_w + (row+pad)*padded_w + pad
+                    padded_idx_end = padded_idx_start + ifmshape[1] 
 
-                        inputs_idx_start = c*ifmshape[0]*ifmshape[1] + row*ifmshape[1]
-                        inputs_idx_end = inputs_idx_start + ifmshape[1] 
-                        padded_inputs[:,batch][padded_idx_start:padded_idx_end] = inputs_arr[:,batch][inputs_idx_start:inputs_idx_end]
-                
+                    inputs_idx_start = c*ifmshape[0]*ifmshape[1] + row*ifmshape[1]
+                    inputs_idx_end = inputs_idx_start + ifmshape[1] 
+                    padded_inputs[:,:][padded_idx_start:padded_idx_end] = inputs_arr[:,:][inputs_idx_start:inputs_idx_end]
             # create a new tensor
             padded_tensor = CPUTensor(padded_inputs, dtype=np.float32)
             inputs = padded_tensor
-
+        
         fsize = links.shape[1]
         for dst in range(ofmsize):
             # Compute the weighted average of the receptive field
